@@ -2,22 +2,31 @@
 This is a Unity 6.0 project created for the Procedural Generation course. Its primary goal is to demonstrate different procedural generation techniques, which will all be explained in detail throughout the rest of the documentation.
 
 In summary, these techniques include procedural generation of:
- * **Terrain**, using Simplex noise
+ * **Terrain**, using Perlin noise
+ * **Biomes**, using Simplex noise
  * **Vegetation**, using L-systems
  * **Dungeons**, using Cellular Automata
  * **NPCs and Items**, using regular randomization
 
 <!-- Insert a gif of the game here -->
-<img src="DocumentationAssets/openworld.png" title="Open World generation" alt="Image of endless green hills, generated in chunks. Procedurally generated vegetation can be seen in the near plane, and a single dungeon entrance is visible somewhere further away.">
+<img src="DocumentationAssets/overworld.png" title="Open World generation" alt="Image of endless green hills, generated in chunks. Procedurally generated vegetation can be seen in the near plane, and a single dungeon entrance is visible somewhere further away.">
 
 ## 🌍 General
 First and foremost, it is important to mention that the entire world generation is consistent, given a seed. The seed, set in the Unity inspector, determines the terrain's heightmap, the dungeon entrances' placement and their respective dungeon's seed, which then determines the exact generation of the dungeon. Vegetation varies based on the given seed, to make the world feel a bit more dynamic.
 
 ## ⛰️ Terrain
-As mentioned before, terrain generation uses Simplex noise as its base. The seed determines a random offset in the Simplex noise map, which is then used to sample positions for the heightmap. The terrain is divided into 64x64 chunks, to allow for infinite terrain generation and dynamic loading and unloading.
+As mentioned before, terrain generation uses Perlin noise as its base. The seed determines a random offset in the Simplex noise map, which is then used to sample positions for the heightmap. The terrain is divided into 64x64 chunks, to allow for infinite terrain generation and dynamic loading and unloading.
 
 ### Heightmap Generation
-TODO (I might change the terrain generation method, that's why I'm keeping this for later)
+The terrain is generated using a formula that takes in a set of 2D coordinates and samples a specific position from a Perlin noise map. The organic-looking terrain comes from the use of Perlin noise, while the randomness comes from a random offset used to sample the noise. The terrain is highly malleable thanks to the many parameters that define the sampling formula:
+ * **Octaves**, the number of samples for one position
+ * **Scale**, determines how rapidly the terrain changes
+ * **Amplitude**, determines how big the difference in altitude can be
+ * **Frequency**, similar to the scale
+ * **Persistence**, determines the altitude contribution of future octaves
+ * **Lacunarity**, determines the frequency contribution of future octaves
+
+If we apply this formula for each position in the terrain's heightmap (which is done per-chunk in a separate thread), we obtain the final terrain shape.
 
 ### Chunk Loading
 The chunk loading system uses a multi-threaded approach, in order to make the gameplay feel smoother, and to make the loading as natural as possible.
@@ -37,7 +46,35 @@ It is worth mentioning that Unity does not allow Unity-specific operations on th
 
 The coroutine generates at most **one** chunk per frame, so as to not keep the game frozen for too long.
 
-### Biome Generation??
+### Biome Generation
+Biomes are regions on the terrain which correspond to certain climatic factors. In this project, each biome holds data associated with the terrain generation for that region (the formula parameters mentioned above), along with an index for the corresponding terrain layer.
+
+Currently, there are **four** biomes, based on two climatic factors: **temperature** and **rainfall**. These can be seen in the table below. 
+
+<table>
+<tr>
+   <td></td> <th>Arid</th> <th>Rainy</th>
+</tr>
+<tr>
+   <th>Cold</th> <td>Hills</td> <td>Tundra</td>
+</tr>
+<tr>
+   <th>Warm</th> <td>Desert</td> <td>Plains</td>
+</tr>
+</table>
+
+Similarly to the terrain generation formula, the temperature and rainfall values are also extracted using an almost identical formula, just with fewer parameters, and using Simplex noise instead of Perlin. For each terrain tile in a chunk, the **t** and **r** values are computed by sampling noise with a random, seed-based offset (one for each factor). Their values will be within the `[0, 1]` interval, so rounding them will get us the biome that most closely resembles the newly obtained temperature and rainfall values. However, simply choosing the closest match creates discontinuities at biome borders, due to the difference in the sampled noise map.
+
+In order to avoid abrupt changes in terrain heights at biome borders, we need some way to blend between the terrain parameters. This can be done by interpolating between the biomes horizontally in pairs, by the temperature factor, and then interpolating between the resulting biomes vertically, by the rainfall factor. Interpolating between biomes simply refers to interpolating between each defining floating point feature, such as amplitude, frequency etc.
+
+This, however, is still not enough. A simple interpolation would not make the distinctions between biomes too visible. To combat this, we can define a more 'abrupt' interpolation formula, that only blends the terrain right next to the border:
+
+```csharp
+const float aMax = 0.45f, bMin = 0.55f;
+if (t < aMax) return a;
+if (t > bMin) return b;
+return Mathf.Lerp(a, b, (t - aMax) / (bMin - aMax));
+```
 
 
 ## 🌿 Vegetation
@@ -91,7 +128,7 @@ Instead of a noise function to determine the positions of the dungeon entrances,
 
 This is based on the hope that the builtin hash function of the Vector2Int type tries its best to uniformly distribute values across its entire range of values, in order to make hash tables more balanced.
 
-<img src="DocumentationAssets/dungeonEntranceGenerator.png">
+<img src="DocumentationAssets/dungeonEntrance.png">
 
 ### Generation
 The generation of the dungeon itself is quite complex, is deterministic based on the dungeon-specific seed, and has numerous steps which will be explained one by one. At it's core:
@@ -167,7 +204,7 @@ This is more of a proof-of-concept project that showcases what can be achieved u
 <style>
 img {
   padding: inherit;
-  margin:auto;
+  margin: auto;
   display: block;
 }
 </style>

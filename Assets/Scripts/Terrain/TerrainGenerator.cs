@@ -19,7 +19,7 @@ namespace Terrain
                 float xCoord = (float)x / chunkSize * biome.Scale * frequency + randOffset.x;
                 float yCoord = (float)y / chunkSize * biome.Scale * frequency + randOffset.y;
 
-                float perlinValue = Mathf.PerlinNoise(xCoord, yCoord) * 2 - 1; // noise.snoise(new Vector2(xCoord, yCoord)) * 2 - 1;
+                float perlinValue = Mathf.PerlinNoise(xCoord, yCoord) * 2 - 1; // noise.snoise(new Vector2(xCoord, yCoord)) / 2 + 0.5f;
                 noiseHeight += perlinValue * amplitude;
 
                 amplitude *= biome.Persistence;
