@@ -76,6 +76,8 @@ We are given a position in `[0, 1]` and a forward direction, from which we need 
 2. If the pixel has already been filled, return
 3. Otherwise, draw the pixel, mark it as drawn, and split the problem in two smaller ones: drawing the line between the start and the middle points, and drawing the line between the middle and end points
 
+<img src="DocumentationAssets/plants.png" style="border-radius: 100px">
+
 ### Terrain Placement
 The vegetation is placed on the terrain during the coroutine instantiation phase. A number of iterations is chosen, and for each one, a random point on the current chunk's surface is selected. A small 3x3 area around that point's detail map is then filled with a high detail value.
 
@@ -128,9 +130,9 @@ After the entire matrix is crossed, we obtain a [Minimum-Spanning Tree](https://
 After the raw layout generation segment, populating the dungeon with content is much simpler. First, we need to find an entrance. This is done by choosing a random floor tile and marking it with a 3 in the dungeon matrix. This is where the player will spawn when they enter the dungeon from the overworld, and also the only way the player can exit the dungeon.
 
 Then, we iterate through all remaining floor tiles, and for each one, we generate a random float between 0 and 100. This number is used to decide that floor tile is either a:
- * **loot tile** (value 4 in the matrix)
- * **enemy tile** (value 5 in the matrix)
- * **trap tile** (value 6 in the matrix)
+ * **loot tile**, 15% chance, value 4 in the matrix
+ * **enemy tile**, 10% chance, value 5 in the matrix
+ * **trap tile**, 5% chance, value 6 in the matrix
 
 There's also a check for each tile that, if in close proximity to the entrance, leaves the floor tile untouched. 
 
@@ -143,8 +145,29 @@ The second pass takes care of placing walls around the floor and corridor tiles.
 
 
 ## 🏹 NPCs and Items
+The final major procedurally generated game element are NPCs and items. Each entity type has a set of traits that describe the item, such as a name, type, damage, health and more. The process of generating a random entity is described below.
 
 ### Generation
+NPCs and items can only appear on their designated dungeon tiles. Each loot tile has a RandomItem GameObject on top of it, and each enemy tile has a RandomNpc GameObject on it. On Awake, these entities are created deterministically based on the dungeon's seed, similar to the dungeon layout generation.
+
+The generation algorithm is simple:
+ * item types and NPC names and classes are chosen at random from a set of predefined values
+ * numerical values, such as health and damage, are chosen randomly from a predetermined range
+ * item rarity is determined based on a percentage chance, similar to the different dungeon floor types
+
+<img src="DocumentationAssets/loot.png" width="80%">
+<img src="DocumentationAssets/enemies.png" width="80%" style="margin-top: 10px">
 
 
 ## Conclusion
+There is a lot of work that still needs to be done in order to make the game fun: create an end goal for the dungeons (such as a boss fight or a treasure room), make the overworld interesting by adding fauna, caves and more structures, and of course, add some gameplay mechanics, textures and models (and many, many more).
+
+This is more of a proof-of-concept project that showcases what can be achieved using procedural generation and minimal manual intervention, leading to organic terrain and dungeons, and creates a practically infinite amount of game content. Sure it can get repetitive due to the rules created to control the randomness factor in favour of playability, but it's an issue that naturally arises from this tradeoff.
+
+<style>
+img {
+  padding: inherit;
+  margin:auto;
+  display: block;
+}
+</style>
