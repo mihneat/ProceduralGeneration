@@ -4,44 +4,25 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using AYellowpaper.SerializedCollections;
 using NaughtyAttributes;
 using UnityEngine;
 using Random = UnityEngine.Random;
 
 namespace Terrain
 {
-    [System.Serializable]
-    public class HeightmapData
-    {
-        [BoxGroup("Noise Parameters")]
-        [Min(0.0f)] public float Scale = 20.0f;
-    
-        [BoxGroup("Noise Parameters")]
-        [Min(0)] public int Octaves = 4;
-        [BoxGroup("Noise Parameters")]
-        [Min(0.0f)] public float Frequency = 0.02f;
-        [BoxGroup("Noise Parameters")]
-        [Min(0.0f)] public float Amplitude = 10.0f;
-        [BoxGroup("Noise Parameters")]
-        [Min(0.0f)] public float Persistence = 1.0f;
-        [BoxGroup("Noise Parameters")]
-        [Min(0.0f)] public float Lacunarity = 1.0f;
-
-        [BoxGroup("Randomness Settings")]
-        public string Seed = "Azeroth";
-
-    }
-
     public class TerrainChunk : IEquatable<TerrainChunk>
     {
         public GameObject gameObject;
-        public float[,] heights;
+        public readonly float[,] heights;
+        public readonly BiomeData[,] biomes;
         public readonly Vector2Int coords;
 
-        public TerrainChunk(Vector2Int coords, float[,] heights)
+        public TerrainChunk(Vector2Int coords, float[,] heights, BiomeData[,] biomes)
         {
             this.coords = coords;
             this.heights = heights;
+            this.biomes = biomes;
         }
 
         public void SetGameObject(GameObject go) => gameObject = go;
@@ -80,8 +61,11 @@ namespace Terrain
         [BoxGroup("Chunk Settings")]
         public Transform chunkParent;
     
-        [BoxGroup("Noise Parameters")]
-        [SerializeField] public HeightmapData heightmapData;
+        [BoxGroup("Randomness Settings")]
+        public string seed = "Azeroth";
+
+        [BoxGroup("Biome Data")]
+        [SerializeField] private SerializedDictionary<Vector2Int, BiomeData> biomes = new();
 
         [BoxGroup("Player Data")]
         public Transform player;
@@ -107,6 +91,31 @@ namespace Terrain
         public event Action<TerrainChunk> OnChunkUnloaded;
 
         private Vector2 _terrainGenerationOffset;
+        private Vector2 _temperatureGenerationOffset;
+        private Vector2 _rainfallGenerationOffset;
+    
+        void Awake()
+        {
+            GenerateChunkOrder();
+            StartCoroutine(CheckChunkGenerationQueue());
+            
+            // Set the seed
+            Random.InitState(seed.GetHashCode());
+            _terrainGenerationOffset = new Vector2(Random.Range(-9999, 9999), Random.Range(-9999, 9999));
+            _temperatureGenerationOffset = new Vector2(Random.Range(-9999, 9999), Random.Range(-9999, 9999));
+            _rainfallGenerationOffset = new Vector2(Random.Range(-9999, 9999), Random.Range(-9999, 9999));
+        }
+
+        void Update()
+        {
+            // Check if the position of the player has moved into a different chunk
+            Vector2Int currentPlayerChunk = WorldPositionToChunkCoords(player.position);
+        
+            if (currentPlayerChunk != lastPlayerChunk) {
+                StartTerrainGenerationTask(currentPlayerChunk);
+                lastPlayerChunk = currentPlayerChunk;
+            }
+        }
 
         private void GenerateChunkOrder()
         {
@@ -143,27 +152,6 @@ namespace Terrain
             }
         }
     
-        void Awake()
-        {
-            GenerateChunkOrder();
-            StartCoroutine(CheckChunkGenerationQueue());
-            
-            // Set the seed
-            Random.InitState(heightmapData.Seed.GetHashCode());
-            _terrainGenerationOffset = new Vector2(Random.Range(-9999, 9999), Random.Range(-9999, 9999));
-        }
-
-        void Update()
-        {
-            // Check if the position of the player has moved into a different chunk
-            Vector2Int currentPlayerChunk = WorldPositionToChunkCoords(player.position);
-        
-            if (currentPlayerChunk != lastPlayerChunk) {
-                StartTerrainGenerationTask(currentPlayerChunk);
-                lastPlayerChunk = currentPlayerChunk;
-            }
-        }
-    
         private void GenerateTerrainData(UnityEngine.Terrain terrain, TerrainChunk chunk, float[,] heights)
         {
             TerrainData terrainData = terrain.terrainData;
@@ -173,6 +161,29 @@ namespace Terrain
             terrainData.size = new Vector3(chunkSize, 100, chunkSize);
 
             terrainData.SetHeights(0, 0, heights);
+            
+            terrain.Flush();
+            
+            // Change the terrain texture
+            var alphaMaps = terrainData.GetAlphamaps(0, 0, terrainData.alphamapWidth, terrainData.alphamapHeight);
+            for (int y = 0; y < terrainData.alphamapHeight; ++y)
+            {
+                for (int x = 0; x < terrainData.alphamapWidth; ++x)
+                {
+                    int newX = Mathf.FloorToInt(1.0f * x / terrainData.alphamapWidth * (chunkSize + 1));
+                    int newY = Mathf.FloorToInt(1.0f * y / terrainData.alphamapHeight * (chunkSize + 1));
+
+                    // var layerContributions = chunk.biomes[newY, newX].layerContributions;
+                    alphaMaps[y, x, 0] = 0;
+                    alphaMaps[y, x, chunk.biomes[newY, newX].biomeLayerIndex] = 256;
+                    // alphaMaps[y, x, 0] = 256 * layerContributions[0];
+                    // alphaMaps[y, x, 1] = 256 * layerContributions[1];
+                    // alphaMaps[y, x, 2] = 256 * layerContributions[2];
+                    // alphaMaps[y, x, 3] = 256 * layerContributions[3];
+                }
+            }
+            
+            terrainData.SetAlphamaps(0, 0, alphaMaps);
             
             terrain.Flush();
             
@@ -202,6 +213,10 @@ namespace Terrain
                 // Skip if grass already exists at this location
                 if (detailLayers[layerIndex][x, z] > 0)
                     continue; 
+                
+                // Skip if not plains
+                if (chunk.biomes[Mathf.FloorToInt(randomPosition.x), Mathf.FloorToInt(randomPosition.z)].biomeLayerIndex != 0)
+                    continue;
 
                 // Fill a 3x3 area around the calculated position
                 for (int dz = -1; dz <= 1; ++dz)
@@ -326,12 +341,12 @@ namespace Terrain
                         continue;
             
                     // Generate the chunk
-                    float[,] heights = TerrainGenerator.GenerateHeights(chunkSize, nextChunkCoords, randOffset, heightmapData);
-
+                    var kvp = TerrainGenerator.GenerateHeights(chunkSize, nextChunkCoords, randOffset, biomes, _temperatureGenerationOffset, _rainfallGenerationOffset);
+                    
                     if (token.IsCancellationRequested)
                         return;
             
-                    _chunkCreationQueue.Enqueue(new TerrainChunk(nextChunkCoords, heights));
+                    _chunkCreationQueue.Enqueue(new TerrainChunk(nextChunkCoords, kvp.Key, kvp.Value));
 
                     if (token.IsCancellationRequested)
                         return;

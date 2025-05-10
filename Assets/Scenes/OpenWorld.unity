@@ -773,14 +773,69 @@ MonoBehaviour:
   detailFactor: 200
   chunkPrefab: {fileID: 7043906001071003070, guid: ded23b94246f7664ebe46bd6d1a3583e, type: 3}
   chunkParent: {fileID: 2094402282}
-  heightmapData:
-    Scale: 20
-    Octaves: 4
-    Frequency: 0.02
-    Amplitude: 0.05
-    Persistence: 1
-    Lacunarity: 1
-    Seed: Azeroth
+  seed: Azeroth
+  biomes:
+    _serializedList:
+    - Key: {x: 0, y: 0}
+      Value:
+        biomeName: Hills
+        biomeLayerIndex: 1
+        layerContributions:
+        - 0
+        - 0
+        - 0
+        - 0
+        Scale: 20
+        Octaves: 4
+        Frequency: 0.03
+        Amplitude: 0.25
+        Persistence: 1.3
+        Lacunarity: 0.8
+    - Key: {x: 0, y: 1}
+      Value:
+        biomeName: Tundra
+        biomeLayerIndex: 2
+        layerContributions:
+        - 0
+        - 0
+        - 0
+        - 0
+        Scale: 20
+        Octaves: 4
+        Frequency: 0.03
+        Amplitude: 0.1
+        Persistence: 1
+        Lacunarity: 1
+    - Key: {x: 1, y: 0}
+      Value:
+        biomeName: Desert
+        biomeLayerIndex: 3
+        layerContributions:
+        - 0
+        - 0
+        - 0
+        - 0
+        Scale: 20
+        Octaves: 4
+        Frequency: 0.03
+        Amplitude: 0.15
+        Persistence: 1.1
+        Lacunarity: 1.3
+    - Key: {x: 1, y: 1}
+      Value:
+        biomeName: Plains
+        biomeLayerIndex: 0
+        layerContributions:
+        - 0
+        - 0
+        - 0
+        - 0
+        Scale: 20
+        Octaves: 4
+        Frequency: 0.03
+        Amplitude: 0.05
+        Persistence: 0.6
+        Lacunarity: 1.3
   player: {fileID: 1685465009}
 --- !u!4 &1685465009 stripped
 Transform:

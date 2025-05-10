@@ -28,7 +28,7 @@ namespace Dungeon
         private void Awake()
         {
             // Generate offsets in the random generation functions, based on the seed
-            Random.InitState(chunkLoader.heightmapData.Seed.GetHashCode());
+            Random.InitState(chunkLoader.seed.GetHashCode());
 
             hashOffset = new Vector2Int(Random.Range(-9999, 9999), Random.Range(-9999, 9999));
             xPositionNoiseOffset = new Vector2(Random.Range(-9999, 9999), Random.Range(-9999, 9999));
