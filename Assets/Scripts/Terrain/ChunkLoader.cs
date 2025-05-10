@@ -106,6 +106,8 @@ namespace Terrain
         public event Action<TerrainChunk> OnChunkLoaded;
         public event Action<TerrainChunk> OnChunkUnloaded;
 
+        private Vector2 _terrainGenerationOffset;
+
         private void GenerateChunkOrder()
         {
             // Generate the order of chunks (BFS and add the chunk offsets to a list)
@@ -145,6 +147,10 @@ namespace Terrain
         {
             GenerateChunkOrder();
             StartCoroutine(CheckChunkGenerationQueue());
+            
+            // Set the seed
+            Random.InitState(heightmapData.Seed.GetHashCode());
+            _terrainGenerationOffset = new Vector2(Random.Range(-9999, 9999), Random.Range(-9999, 9999));
         }
 
         void Update()
@@ -184,7 +190,6 @@ namespace Terrain
             detailLayers.Add(terrainData.GetDetailLayer(0, 0, detailResolution, detailResolution, 2));
             
             int numberOfGrass = Random.Range(100, 300);
-            // List<Vector2> grassPositions = new List<Vector2>();
 
             for (int i = 0; i < numberOfGrass; i++)
             {
@@ -197,31 +202,6 @@ namespace Terrain
                 // Skip if grass already exists at this location
                 if (detailLayers[layerIndex][x, z] > 0)
                     continue; 
-
-                Vector3 worldPosition = new Vector3(
-                    randomPosition.x + chunk.coords.x, 
-                    terrain.SampleHeight(randomPosition), 
-                    randomPosition.z +  + chunk.coords.y
-                );
-
-                // // Check for minimum distance between grass
-                // bool canSpawnGrass = true;
-                // foreach (var grassPos in grassPositions)
-                // {
-                //     if (Vector3.Distance(worldPosition, 
-                //             new Vector3(
-                //                 grassPos.x, 
-                //                 terrain.SampleHeight(new Vector3(grassPos.x, 0, grassPos.y)), 
-                //                 grassPos.y)
-                //             ) < 0.5f)
-                //     {
-                //         canSpawnGrass = false;
-                //         break;
-                //     }
-                // }
-                //
-                // if (!canSpawnGrass)
-                //     continue;
 
                 // Fill a 3x3 area around the calculated position
                 for (int dz = -1; dz <= 1; ++dz)
@@ -236,23 +216,12 @@ namespace Terrain
                         detailLayers[layerIndex][newX, newZ] = detailFactor;
                     }
                 }
-                
-                
-                
-                // Debug.Log($"[ChunkLoader] [{x}, {z}]: {detailLayers[x, z]}");
-                // grassPositions.Add(new Vector2(randomPosition.x, randomPosition.z));
-
-                // Debug.Log($"Grass spawned at: {worldPosition} (Detail layer position: {x}, {z})");
             }
 
             // Apply changes to the detail layers
             terrainData.SetDetailLayer(0, 0, 0, detailLayers[0]);
             terrainData.SetDetailLayer(0, 0, 1, detailLayers[1]);
             terrainData.SetDetailLayer(0, 0, 2, detailLayers[2]);
-
-            // Debug.Log($"[ChunkLoader] {terrainData.detailWidth}, {terrainData.detailHeight}, {terrainData.ComputeDetailCoverage(1)}, {terrainData.maxDetailScatterPerRes}, {terrainData.detailPatchCount}");
-
-            // Debug.Log($"[ChunkLoader] New chunk detail prototypes: {terrainData.detailPrototypes.Length}");
             
             // Force terrain to refresh its details
             terrain.Flush();
@@ -331,16 +300,12 @@ namespace Terrain
         
             // Shallow copy the loaded chunks
             List<TerrainChunk> loadedChunksCopy = new List<TerrainChunk>(loadedChunks);
-            
-            // Reset the seed
-            Random.InitState(heightmapData.Seed.GetHashCode());
-            Vector2 randOffset = new Vector2(Random.Range(-9999, 9999), Random.Range(-9999, 9999));
 
             _cancellationTokenSource = new CancellationTokenSource();
             var terrainGenerationTask = Task.Run(
                 () => UpdateLoadedChunks(
                     currentChunk,
-                    randOffset,
+                    _terrainGenerationOffset,
                     loadedChunksCopy,
                     _cancellationTokenSource.Token
                 ),
