@@ -151,7 +151,6 @@ namespace Plants
                 // Draw a point at the middle of the current line
                 var currLine = queue.Dequeue();
                 Vector2 middle = (currLine.Key + currLine.Value) / 2;
-                Vector2Int texturePosition = TexturePosition(middle, plant.textureSize);
                 
                 // Try to draw the pixel
                 if (!DrawPixel(middle, plant, plantTexture, drawnPixels, plant.plantColor))
@@ -240,7 +239,7 @@ namespace Plants
             fileStream.Close();
         }
         
-        [Button]
+        [Button("Generate Plants")]
         public void GeneratePlantButton()
         {
             foreach (var plantType in Enum.GetValues(typeof(Plant)).Cast<Plant>())
