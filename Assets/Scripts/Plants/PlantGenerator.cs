@@ -6,6 +6,7 @@ using System.Linq;
 using AYellowpaper.SerializedCollections;
 using NaughtyAttributes;
 using UnityEngine;
+using Random = UnityEngine.Random;
 
 namespace Plants
 {
@@ -121,15 +122,15 @@ namespace Plants
             if (drawnPixels.Contains(texturePosition))
                 return false;
             
-            // TODO: Add color variation?
-            plantTexture.SetPixel(texturePosition.x, texturePosition.y, color);
+            // Add color variation?
+            plantTexture.SetPixel(texturePosition.x, texturePosition.y, color * Random.Range(0.9f, 1.1f));
             drawnPixels.Add(texturePosition);
             
             // Draw the pixels around
-            DrawNeighbouringPixel(texturePosition + Vector2Int.up, plantTexture, plant, color);
-            DrawNeighbouringPixel(texturePosition + Vector2Int.down, plantTexture, plant, color);
-            DrawNeighbouringPixel(texturePosition + Vector2Int.left, plantTexture, plant, color);
-            DrawNeighbouringPixel(texturePosition + Vector2Int.right, plantTexture, plant, color);
+            DrawNeighbouringPixel(texturePosition + Vector2Int.up, plantTexture, plant, color * Random.Range(0.9f, 1.1f));
+            DrawNeighbouringPixel(texturePosition + Vector2Int.down, plantTexture, plant, color * Random.Range(0.9f, 1.1f));
+            DrawNeighbouringPixel(texturePosition + Vector2Int.left, plantTexture, plant, color * Random.Range(0.9f, 1.1f));
+            DrawNeighbouringPixel(texturePosition + Vector2Int.right, plantTexture, plant, color * Random.Range(0.9f, 1.1f));
 
             return true;
         }
@@ -154,26 +155,6 @@ namespace Plants
                 
                 // Try to draw the pixel
                 if (!DrawPixel(middle, plant, plantTexture, drawnPixels, plant.plantColor))
-                    continue;
-
-                // Check the 3x3 surrounding pixels, and stop if at least 1 is drawn
-                bool stopDrawing = false;
-                for (int y = -1; y <= 1; ++y)
-                {
-                    for (int x = -1; x <= 1; ++x)
-                    {
-                        // Skip the current pixel
-                        if (x == 0 && y == 0)
-                            continue;
-                    
-                        // Stop the search if at least one surrounding pixel has already been drawn
-                        Vector2Int surroundingPixel = new Vector2Int(texturePosition.x + x, texturePosition.y + y);
-                        if (drawnPixels.Contains(surroundingPixel))
-                            stopDrawing = true;
-                    }
-                }
-
-                if (stopDrawing)
                     continue;
                 
                 // Process the 2 halves of the current line
@@ -229,8 +210,6 @@ namespace Plants
         {
             // Create the full sequence
             string sequence = ExpandRule(plant);
-            // Debug.Log($"[PlantGenerator] Sequence for {plant.plantName}: {sequence}");
-            
             DrawPlant(sequence, plant, plantTexture);
         }
 
